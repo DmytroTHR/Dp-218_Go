@@ -29,6 +29,7 @@ type ProblemServiceClient interface {
 	GetAllProblems(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error)
 	GetProblemsByTypeID(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error)
 	GetProblemsByUserID(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error)
+	GetProblemsBySolved(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error)
 }
 
 type problemServiceClient struct {
@@ -102,6 +103,15 @@ func (c *problemServiceClient) GetProblemsByUserID(ctx context.Context, in *Prob
 	return out, nil
 }
 
+func (c *problemServiceClient) GetProblemsBySolved(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, "/problem.ProblemService/GetProblemsBySolved", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ProblemServiceServer is the server API for ProblemService service.
 // All implementations must embed UnimplementedProblemServiceServer
 // for forward compatibility
@@ -113,6 +123,7 @@ type ProblemServiceServer interface {
 	GetAllProblems(context.Context, *ProblemRequest) (*Response, error)
 	GetProblemsByTypeID(context.Context, *ProblemRequest) (*Response, error)
 	GetProblemsByUserID(context.Context, *ProblemRequest) (*Response, error)
+	GetProblemsBySolved(context.Context, *ProblemRequest) (*Response, error)
 	mustEmbedUnimplementedProblemServiceServer()
 }
 
@@ -140,6 +151,9 @@ func (UnimplementedProblemServiceServer) GetProblemsByTypeID(context.Context, *P
 }
 func (UnimplementedProblemServiceServer) GetProblemsByUserID(context.Context, *ProblemRequest) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProblemsByUserID not implemented")
+}
+func (UnimplementedProblemServiceServer) GetProblemsBySolved(context.Context, *ProblemRequest) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProblemsBySolved not implemented")
 }
 func (UnimplementedProblemServiceServer) mustEmbedUnimplementedProblemServiceServer() {}
 
@@ -280,6 +294,24 @@ func _ProblemService_GetProblemsByUserID_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ProblemService_GetProblemsBySolved_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProblemRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProblemServiceServer).GetProblemsBySolved(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/problem.ProblemService/GetProblemsBySolved",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProblemServiceServer).GetProblemsBySolved(ctx, req.(*ProblemRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ProblemService_ServiceDesc is the grpc.ServiceDesc for ProblemService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -314,6 +346,10 @@ var ProblemService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetProblemsByUserID",
 			Handler:    _ProblemService_GetProblemsByUserID_Handler,
+		},
+		{
+			MethodName: "GetProblemsBySolved",
+			Handler:    _ProblemService_GetProblemsBySolved_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

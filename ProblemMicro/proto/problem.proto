@@ -10,6 +10,7 @@ service ProblemService{
   rpc GetAllProblems(ProblemRequest) returns(Response) {}
   rpc GetProblemsByTypeID(ProblemRequest) returns(Response) {}
   rpc GetProblemsByUserID(ProblemRequest) returns(Response) {}
+  rpc GetProblemsBySolved(ProblemRequest) returns(Response) {}
 }
 
 message DateTime{
@@ -34,6 +35,7 @@ message ProblemRequest{
   int64 id = 1;
   int64 user_id = 2;
   int32 type_id = 3;
+  bool is_solved = 4;
 }
 
 message Response {

@@ -9,7 +9,9 @@ import (
 	"Dp218Go/routing/httpserver"
 	"Dp218Go/services"
 	"fmt"
+	"google.golang.org/grpc"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -59,7 +61,13 @@ func main() {
 
 	var problemRepoDB = postgres.NewProblemRepoDB(userRoleRepoDB, scooterRepo, db)
 	var solutionRepoDB = postgres.NewSolutionRepoDB(db)
-	var problemService = services.NewProblemService(problemRepoDB, solutionRepoDB)
+	problemGRPCServer := net.JoinHostPort(configs.PROBLEMS_SERVICE, configs.PROBLEMS_GRPC_PORT)
+	problemConnection, err := grpc.Dial(problemGRPCServer, grpc.WithInsecure())
+	if err != nil {
+		log.Panicf("%s: unable to set grpc connection - %v", problemGRPCServer, err)
+	}
+	defer problemConnection.Close()
+	var problemService = services.NewProblemService(problemRepoDB, solutionRepoDB, problemConnection)
 
 	var orderRepoDB = postgres.NewOrderRepoDB(db)
 	var orderService = services.NewOrderService(orderRepoDB)

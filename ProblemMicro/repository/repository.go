@@ -13,6 +13,7 @@ type ProblemRepositoryServer interface {
 	ReadAll(ctx context.Context) ([]*proto.Problem, error)
 	ReadByTypeID(ctx context.Context, typeID int32) ([]*proto.Problem, error)
 	ReadByUserID(ctx context.Context, userID int64) ([]*proto.Problem, error)
+	ReadBySolved(ctx context.Context, isSolved bool) ([]*proto.Problem, error)
 	Update(ctx context.Context, problem *proto.Problem) (*proto.Problem, error)
 	DeleteByID(ctx context.Context, id int64) error
 }
@@ -114,6 +115,10 @@ func (repo *ProblemRepo) ReadByTypeID(ctx context.Context, typeID int32) ([]*pro
 
 func (repo *ProblemRepo) ReadByUserID(ctx context.Context, userID int64) ([]*proto.Problem, error) {
 	return repo.readWithCondition(ctx, `WHERE probls.user_id = $1`, userID)
+}
+
+func (repo *ProblemRepo) ReadBySolved(ctx context.Context, isSolved bool) ([]*proto.Problem, error) {
+	return repo.readWithCondition(ctx, `WHERE probls.is_solved = $1`, isSolved)
 }
 
 func (repo *ProblemRepo) Update(ctx context.Context, problem *proto.Problem) (*proto.Problem, error) {

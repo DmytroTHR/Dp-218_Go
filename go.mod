@@ -2,6 +2,8 @@ module Dp218Go
 
 go 1.17
 
+replace problem.micro => ./ProblemMicro
+
 require (
 	github.com/gorilla/sessions v1.2.1
 	golang.org/x/crypto v0.0.0-20211209193657-4570a0811e8b
@@ -18,8 +20,9 @@ require (
 	github.com/jackc/pgx/v4 v4.14.0
 	github.com/jszwec/csvutil v1.6.0
 	github.com/stretchr/testify v1.7.0
-	google.golang.org/grpc v1.41.0
+	google.golang.org/grpc v1.43.0
 	google.golang.org/protobuf v1.27.1
+	problem.micro v0.0.0-00010101000000-000000000000
 )
 
 require (
@@ -47,7 +50,7 @@ require (
 	github.com/jcmturner/gokrb5/v8 v8.4.2 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
-	github.com/lib/pq v1.10.2 // indirect
+	github.com/lib/pq v1.10.4 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect

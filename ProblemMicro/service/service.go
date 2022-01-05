@@ -71,3 +71,11 @@ func (serv *ProblemService) GetProblemsByUserID(ctx context.Context, request *pr
 		Problems: problems,
 	}, err
 }
+
+func (serv *ProblemService) GetProblemsBySolved(ctx context.Context, request *proto.ProblemRequest) (*proto.Response, error) {
+	problems, err := serv.Repo.ReadBySolved(ctx, request.IsSolved)
+	return &proto.Response{
+		Success:  err == nil,
+		Problems: problems,
+	}, err
+}
