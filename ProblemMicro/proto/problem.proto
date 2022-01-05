@@ -1,0 +1,43 @@
+syntax = "proto3";
+package problem;
+option go_package = "./;proto";
+
+service ProblemService{
+  rpc AddNewProblem(Problem) returns (Response) {}
+  rpc UpdateProblem(Problem) returns (Response) {}
+  rpc DeleteProblem(Problem) returns (Response) {}
+  rpc GetProblemByID(ProblemRequest) returns(Response) {}
+  rpc GetAllProblems(ProblemRequest) returns(Response) {}
+  rpc GetProblemsByTypeID(ProblemRequest) returns(Response) {}
+  rpc GetProblemsByUserID(ProblemRequest) returns(Response) {}
+}
+
+message DateTime{
+  int64 seconds = 1;
+}
+
+message ProblemType {
+  int32 id = 1;
+  string name = 2;
+}
+
+message Problem {
+  int64 id = 1;
+  int64 user_id = 2;
+  string description = 3;
+  ProblemType type = 4;
+  bool is_solved = 5;
+  DateTime reported_at = 6;
+}
+
+message ProblemRequest{
+  int64 id = 1;
+  int64 user_id = 2;
+  int32 type_id = 3;
+}
+
+message Response {
+  bool success = 1;
+  Problem problem = 2;
+  repeated Problem problems = 3;
+}

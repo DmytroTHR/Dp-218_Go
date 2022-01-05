@@ -3,6 +3,7 @@ COPY go.mod go.sum /go/src/Dp218Go/
 WORKDIR /go/src/Dp218Go
 RUN go mod tidy
 COPY . /go/src/Dp218Go
+ENV GO111MODULE=on
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o build/scooterapp ./cmd/app
 
 FROM alpine
