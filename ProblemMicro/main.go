@@ -1,3 +1,4 @@
+//go:generate protoc -I=./proto --go_out=./proto ./proto/problem.proto --go-grpc_out=./proto ./proto/problem.proto
 package main
 
 import (
@@ -5,8 +6,8 @@ import (
 	"ProblemMicro/proto"
 	"ProblemMicro/service"
 	"database/sql"
-	_ "github.com/lib/pq"
 	"fmt"
+	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"log"
@@ -17,10 +18,10 @@ const MicroName = "problem_service"
 
 func main() {
 	connectionDB := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		configs.POSTGRES_USER,
-		configs.POSTGRES_PASSWORD,
 		configs.PG_HOST,
 		configs.PG_PORT,
+		configs.POSTGRES_USER,
+		configs.POSTGRES_PASSWORD,
 		configs.POSTGRES_DB)
 
 	db, err := sql.Open("postgres", connectionDB)

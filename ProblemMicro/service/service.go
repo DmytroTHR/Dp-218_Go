@@ -79,3 +79,28 @@ func (serv *ProblemService) GetProblemsBySolved(ctx context.Context, request *pr
 		Problems: problems,
 	}, err
 }
+
+func (serv *ProblemService) GetProblemsByTimePeriod(ctx context.Context, request *proto.ProblemRequest) (*proto.Response, error) {
+	problems, err := serv.Repo.ReadByTimePeriod(ctx, request.StartTime, request.EndTime)
+	return &proto.Response{
+		Success:  err == nil,
+		Problems: problems,
+	}, err
+}
+
+func (serv *ProblemService) GetProblemTypeByID(ctx context.Context, request *proto.ProblemRequest) (*proto.Response, error) {
+	problemType, err := serv.Repo.ReadTypeByID(ctx, request.TypeId)
+	return &proto.Response{
+		Success:  err == nil,
+		ProblemType: problemType,
+	}, err
+}
+
+func (serv *ProblemService) GetAllProblemTypes(ctx context.Context, request *proto.ProblemRequest) (*proto.Response, error) {
+	_ = request
+	problemTypes, err := serv.Repo.ReadTypeAll(ctx)
+	return &proto.Response{
+		Success:  err == nil,
+		ProblemTypes: problemTypes,
+	}, err
+}

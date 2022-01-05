@@ -14,8 +14,11 @@ type ProblemRepositoryServer interface {
 	ReadByTypeID(ctx context.Context, typeID int32) ([]*proto.Problem, error)
 	ReadByUserID(ctx context.Context, userID int64) ([]*proto.Problem, error)
 	ReadBySolved(ctx context.Context, isSolved bool) ([]*proto.Problem, error)
+	ReadByTimePeriod(ctx context.Context, start, end proto.DateTime) ([]*proto.Problem, error)
 	Update(ctx context.Context, problem *proto.Problem) (*proto.Problem, error)
 	DeleteByID(ctx context.Context, id int64) error
+	ReadTypeByID(ctx context.Context, id int32) (*proto.ProblemType, error)
+	ReadTypeAll(ctx context.Context) ([]*proto.ProblemType, error)
 }
 
 type ProblemRepo struct {
@@ -51,19 +54,21 @@ func (repo *ProblemRepo) ReadByID(ctx context.Context, id int64) (*proto.Problem
 		FROM problems as probls 
 		    LEFT JOIN problem_types as types 
 		        ON probls.type_Id = types.id
-		WHERE id = $1;`
+		WHERE probls.id = $1;`
 	row := repo.db.QueryRowContext(ctx, query, id)
-	var problem *proto.Problem
+	var problem proto.Problem
+	var problemType proto.ProblemType
 	var currDate time.Time
-	err := row.Scan(&problem.Id, &problem.UserId, &problem.Type.Id,
-		&problem.Type.Name, &problem.Description, &problem.IsSolved, &currDate)
+	err := row.Scan(&problem.Id, &problem.UserId, &problemType.Id,
+		&problemType.Name, &problem.Description, &problem.IsSolved, &currDate)
 	if err != nil {
-		return problem, err
+		return &problem, err
 	}
+	problem.Type = &problemType
 	problem.ReportedAt = &proto.DateTime{
 		Seconds: currDate.Unix(),
 	}
-	return problem, err
+	return &problem, err
 }
 
 func (repo *ProblemRepo) readWithCondition(ctx context.Context, condition string, params ...interface{}) ([]*proto.Problem, error) {
@@ -90,17 +95,19 @@ func (repo *ProblemRepo) readWithCondition(ctx context.Context, condition string
 	defer row.Close()
 
 	for row.Next() {
-		var problem *proto.Problem
+		var problem proto.Problem
+		var problemType proto.ProblemType
 		var currDate time.Time
-		err := row.Scan(&problem.Id, &problem.UserId, &problem.Type.Id,
-			&problem.Type.Name, &problem.Description, &problem.IsSolved, &currDate)
+		err := row.Scan(&problem.Id, &problem.UserId, &problemType.Id,
+			&problemType.Name, &problem.Description, &problem.IsSolved, &currDate)
 		if err != nil {
 			return result, err
 		}
+		problem.Type = &problemType
 		problem.ReportedAt = &proto.DateTime{
 			Seconds: currDate.Unix(),
 		}
-		result = append(result, problem)
+		result = append(result, &problem)
 	}
 	return result, err
 }
@@ -121,6 +128,11 @@ func (repo *ProblemRepo) ReadBySolved(ctx context.Context, isSolved bool) ([]*pr
 	return repo.readWithCondition(ctx, `WHERE probls.is_solved = $1`, isSolved)
 }
 
+func (repo *ProblemRepo) ReadByTimePeriod(ctx context.Context, start, end *proto.DateTime) ([]*proto.Problem, error) {
+	return repo.readWithCondition(ctx, `WHERE probls.date_reported >= $1 AND probls.date_reported <= $2`,
+		time.Unix(start.Seconds, 0), time.Unix(end.Seconds, 0))
+}
+
 func (repo *ProblemRepo) Update(ctx context.Context, problem *proto.Problem) (*proto.Problem, error) {
 	query := `UPDATE problems 
 		SET 
@@ -138,4 +150,38 @@ func (repo *ProblemRepo) DeleteByID(ctx context.Context, id int64) error {
 	query := `DELETE FROM problems WHERE id = $1;`
 	_, err := repo.db.ExecContext(ctx, query, id)
 	return err
+}
+
+func (repo *ProblemRepo) ReadTypeByID(ctx context.Context, id int32) (*proto.ProblemType, error) {
+	query := `SELECT 
+		id, 
+       	name
+		FROM problem_types 
+		WHERE id = $1;`
+	row := repo.db.QueryRowContext(ctx, query, id)
+	var problemType proto.ProblemType
+	err := row.Scan(&problemType.Id, &problemType.Name)
+	return &problemType, err
+}
+
+func (repo *ProblemRepo) ReadTypeAll(ctx context.Context) ([]*proto.ProblemType, error) {
+	query := `SELECT 
+		id, 
+       	name
+		FROM problem_types;`
+	row, err := repo.db.QueryContext(ctx, query)
+	var result []*proto.ProblemType
+	if err != nil {
+		return result, err
+	}
+	defer row.Close()
+	for row.Next() {
+		var problemType proto.ProblemType
+		err := row.Scan(&problemType.Id, &problemType.Name)
+		if err != nil {
+			return result, err
+		}
+		result = append(result, &problemType)
+	}
+	return result, nil
 }

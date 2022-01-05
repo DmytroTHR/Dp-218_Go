@@ -30,6 +30,9 @@ type ProblemServiceClient interface {
 	GetProblemsByTypeID(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error)
 	GetProblemsByUserID(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error)
 	GetProblemsBySolved(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error)
+	GetProblemsByTimePeriod(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error)
+	GetProblemTypeByID(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error)
+	GetAllProblemTypes(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error)
 }
 
 type problemServiceClient struct {
@@ -112,6 +115,33 @@ func (c *problemServiceClient) GetProblemsBySolved(ctx context.Context, in *Prob
 	return out, nil
 }
 
+func (c *problemServiceClient) GetProblemsByTimePeriod(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, "/problem.ProblemService/GetProblemsByTimePeriod", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *problemServiceClient) GetProblemTypeByID(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, "/problem.ProblemService/GetProblemTypeByID", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *problemServiceClient) GetAllProblemTypes(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, "/problem.ProblemService/GetAllProblemTypes", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ProblemServiceServer is the server API for ProblemService service.
 // All implementations must embed UnimplementedProblemServiceServer
 // for forward compatibility
@@ -124,6 +154,9 @@ type ProblemServiceServer interface {
 	GetProblemsByTypeID(context.Context, *ProblemRequest) (*Response, error)
 	GetProblemsByUserID(context.Context, *ProblemRequest) (*Response, error)
 	GetProblemsBySolved(context.Context, *ProblemRequest) (*Response, error)
+	GetProblemsByTimePeriod(context.Context, *ProblemRequest) (*Response, error)
+	GetProblemTypeByID(context.Context, *ProblemRequest) (*Response, error)
+	GetAllProblemTypes(context.Context, *ProblemRequest) (*Response, error)
 	mustEmbedUnimplementedProblemServiceServer()
 }
 
@@ -154,6 +187,15 @@ func (UnimplementedProblemServiceServer) GetProblemsByUserID(context.Context, *P
 }
 func (UnimplementedProblemServiceServer) GetProblemsBySolved(context.Context, *ProblemRequest) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProblemsBySolved not implemented")
+}
+func (UnimplementedProblemServiceServer) GetProblemsByTimePeriod(context.Context, *ProblemRequest) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProblemsByTimePeriod not implemented")
+}
+func (UnimplementedProblemServiceServer) GetProblemTypeByID(context.Context, *ProblemRequest) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProblemTypeByID not implemented")
+}
+func (UnimplementedProblemServiceServer) GetAllProblemTypes(context.Context, *ProblemRequest) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllProblemTypes not implemented")
 }
 func (UnimplementedProblemServiceServer) mustEmbedUnimplementedProblemServiceServer() {}
 
@@ -312,6 +354,60 @@ func _ProblemService_GetProblemsBySolved_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ProblemService_GetProblemsByTimePeriod_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProblemRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProblemServiceServer).GetProblemsByTimePeriod(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/problem.ProblemService/GetProblemsByTimePeriod",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProblemServiceServer).GetProblemsByTimePeriod(ctx, req.(*ProblemRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ProblemService_GetProblemTypeByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProblemRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProblemServiceServer).GetProblemTypeByID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/problem.ProblemService/GetProblemTypeByID",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProblemServiceServer).GetProblemTypeByID(ctx, req.(*ProblemRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ProblemService_GetAllProblemTypes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProblemRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProblemServiceServer).GetAllProblemTypes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/problem.ProblemService/GetAllProblemTypes",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProblemServiceServer).GetAllProblemTypes(ctx, req.(*ProblemRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ProblemService_ServiceDesc is the grpc.ServiceDesc for ProblemService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -350,6 +446,18 @@ var ProblemService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetProblemsBySolved",
 			Handler:    _ProblemService_GetProblemsBySolved_Handler,
+		},
+		{
+			MethodName: "GetProblemsByTimePeriod",
+			Handler:    _ProblemService_GetProblemsByTimePeriod_Handler,
+		},
+		{
+			MethodName: "GetProblemTypeByID",
+			Handler:    _ProblemService_GetProblemTypeByID_Handler,
+		},
+		{
+			MethodName: "GetAllProblemTypes",
+			Handler:    _ProblemService_GetAllProblemTypes_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

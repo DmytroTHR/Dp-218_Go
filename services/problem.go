@@ -5,8 +5,8 @@ import (
 	"Dp218Go/repositories"
 	"context"
 	"google.golang.org/grpc"
-	"time"
 	"problem.micro/proto"
+	"time"
 )
 
 // ProblemService - structure for implementing user problem service
@@ -15,6 +15,7 @@ type ProblemService struct {
 	repoSolution repositories.SolutionRepo
 	microservice proto.ProblemServiceClient
 }
+
 func (problserv *ProblemService) unmarshallProblem(problemGRPC *proto.Problem) models.Problem  {
 	problem := models.Problem{
 		ID:           int(problemGRPC.Id),
@@ -24,6 +25,13 @@ func (problserv *ProblemService) unmarshallProblem(problemGRPC *proto.Problem) m
 	}
 	problserv.AddProblemComplexFields(&problem, int(problemGRPC.Type.Id), 0, int(problemGRPC.UserId))
 	return problem
+}
+
+func (problserv *ProblemService) unmarshallProblemType(problemTypeGRPC *proto.ProblemType) models.ProblemType  {
+	return models.ProblemType{
+		ID:   int(problemTypeGRPC.Id),
+		Name: problemTypeGRPC.Name,
+	}
 }
 
 func (problserv *ProblemService) marshallProblem(problem *models.Problem) *proto.Problem  {
@@ -79,18 +87,29 @@ func (problserv *ProblemService) MarkProblemAsSolved(problem *models.Problem) (m
 
 // GetProblemTypeByID - get problem type record by its ID
 func (problserv *ProblemService) GetProblemTypeByID(typeID int) (models.ProblemType, error) {
-	return problserv.repoProblem.GetProblemTypeByID(typeID)
+	request := &proto.ProblemRequest{TypeId: int32(typeID)}
+	response, err := problserv.microservice.GetProblemTypeByID(context.Background(), request)
+	return problserv.unmarshallProblemType(response.ProblemType), err
 }
 
 func (problserv *ProblemService) GetAllProblemTypes() ([]models.ProblemType, error) {
-	return problserv.repoProblem.GetAllProblemTypes()
+	request := &proto.ProblemRequest{}
+	response, err := problserv.microservice.GetAllProblemTypes(context.Background(), request)
+	var resultingList []models.ProblemType
+	if err != nil {
+		return resultingList, err
+	}
+	for _, val := range response.ProblemTypes {
+		resultingList = append(resultingList, problserv.unmarshallProblemType(val))
+	}
+	return resultingList, err
 }
 
 // GetProblemsByUserID - get problem list for given user (by user ID)
 func (problserv *ProblemService) GetProblemsByUserID(userID int) (*models.ProblemList, error) {
 	request := &proto.ProblemRequest{UserId: int64(userID)}
 	response, err := problserv.microservice.GetProblemsByUserID(context.Background(), request)
-	var resultingList *models.ProblemList
+	resultingList := &models.ProblemList{}
 	if err != nil {
 		return resultingList, err
 	}
@@ -104,7 +123,7 @@ func (problserv *ProblemService) GetProblemsByUserID(userID int) (*models.Proble
 func (problserv *ProblemService) GetProblemsByTypeID(typeID int) (*models.ProblemList, error) {
 	request := &proto.ProblemRequest{TypeId: int32(typeID)}
 	response, err := problserv.microservice.GetProblemsByTypeID(context.Background(), request)
-	var resultingList *models.ProblemList
+	resultingList := &models.ProblemList{}
 	if err != nil {
 		return resultingList, err
 	}
@@ -118,7 +137,7 @@ func (problserv *ProblemService) GetProblemsByTypeID(typeID int) (*models.Proble
 func (problserv *ProblemService) GetProblemsByBeingSolved(solved bool) (*models.ProblemList, error) {
 	request := &proto.ProblemRequest{IsSolved: solved}
 	response, err := problserv.microservice.GetProblemsBySolved(context.Background(), request)
-	var resultingList *models.ProblemList
+	resultingList := &models.ProblemList{}
 	if err != nil {
 		return resultingList, err
 	}
@@ -130,7 +149,19 @@ func (problserv *ProblemService) GetProblemsByBeingSolved(solved bool) (*models.
 
 // GetProblemsByTimePeriod - get problem list from time start to time end
 func (problserv *ProblemService) GetProblemsByTimePeriod(start, end time.Time) (*models.ProblemList, error) {
-	return problserv.repoProblem.GetProblemsByTimePeriod(start, end)
+	request := &proto.ProblemRequest{
+		StartTime: &proto.DateTime{Seconds: start.Unix()},
+		EndTime: &proto.DateTime{Seconds: end.Unix()},
+	}
+	response, err := problserv.microservice.GetProblemsByTimePeriod(context.Background(), request)
+	resultingList := &models.ProblemList{}
+	if err != nil {
+		return resultingList, err
+	}
+	for _, val := range response.Problems {
+		resultingList.Problems = append(resultingList.Problems, problserv.unmarshallProblem(val))
+	}
+	return resultingList, err
 }
 
 // AddProblemComplexFields - fulfill problem model with problem type, scooter, user (by their IDs)
