@@ -4,6 +4,7 @@ import (
 	"Dp218Go/models"
 	"Dp218Go/services"
 	"Dp218Go/utils"
+	"errors"
 	"github.com/gorilla/mux"
 	"net/http"
 	"strconv"
@@ -25,17 +26,58 @@ var keyProblemRoutes = []Route{
 		Handler: getProblemInfo,
 	},
 	{
-		Uri:     `/problem`,
+		Uri:     `/problems`,
 		Method:  http.MethodPost,
 		Handler: addProblem,
 	},
+	{
+		Uri:     `/problem`,
+		Method:  http.MethodGet,
+		Handler: newProblem,
+	},
+	{
+		Uri:     `/problem/{` + problemIDKey + `}/solution`,
+		Method:  http.MethodPost,
+		Handler: addProblemSolution,
+	},
+	{
+		Uri:     `/problem/{` + problemIDKey + `}/solution`,
+		Method:  http.MethodGet,
+		Handler: getProblemSolution,
+	},
 }
 
-func AddProblemHandler(router *mux.Router, service *services.ProblemService) {
-	problemService = service
+type problemsForTemplate struct {
+	ProblemList *models.ProblemList
+}
+
+// DistinctProblemUsers - to fill users in templates filter
+func (pu *problemsForTemplate) DistinctProblemUsers() map[int]models.User {
+	var result = make(map[int]models.User)
+	for _, v := range pu.ProblemList.Problems {
+		result[v.User.ID] = v.User
+	}
+	return result
+}
+
+// DistinctProblemTypes - to fill types of problems in templates filter
+func (pu *problemsForTemplate) DistinctProblemTypes() map[int]models.ProblemType {
+	var result = make(map[int]models.ProblemType)
+	for _, v := range pu.ProblemList.Problems {
+		result[v.Type.ID] = v.Type
+	}
+	return result
+}
+
+// AddProblemHandler - add endpoints for user problems & solutions to http router
+func AddProblemHandler(router *mux.Router, problserv *services.ProblemService) {
+	problemService = problserv
+	problemRouter := router.NewRoute().Subrouter()
+	problemRouter.Use(FilterAuth(authenticationService))
+
 	for _, rt := range keyProblemRoutes {
-		router.Path(rt.Uri).HandlerFunc(rt.Handler).Methods(rt.Method)
-		router.Path(APIprefix + rt.Uri).HandlerFunc(rt.Handler).Methods(rt.Method)
+		problemRouter.Path(rt.Uri).HandlerFunc(rt.Handler).Methods(rt.Method)
+		problemRouter.Path(APIprefix + rt.Uri).HandlerFunc(rt.Handler).Methods(rt.Method)
 	}
 }
 
@@ -43,7 +85,7 @@ func getAllProblems(w http.ResponseWriter, r *http.Request) {
 
 	var problems *models.ProblemList
 	var err error
-	var userID, typeID, dateFrom, dateTo interface{}
+	var userID, typeID, dateFrom, dateTo, isSolvedFilter interface{}
 	format := GetFormatFromRequest(r)
 
 	userID, err = GetParameterFromRequest(r, "UserID", utils.ConvertStringToInt())
@@ -81,14 +123,47 @@ func getAllProblems(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		problems, err = problemService.GetProblemsByBeingSolved(false)
+		isSolvedFilter, err = GetParameterFromRequest(r, "SolvedFilter", utils.ConvertStringToBool())
+		if err == nil {
+			problems, err = problemService.GetProblemsByBeingSolved(isSolvedFilter.(bool))
+			if err != nil {
+				ServerErrorRender(format, w)
+				return
+			}
+		}
+	}
+
+	if err != nil {
+		problems, err = problemService.GetProblemsByTimePeriod(time.Unix(0, 0), time.Now())
 		if err != nil {
 			ServerErrorRender(format, w)
 			return
 		}
 	}
 
-	EncodeAnswer(format, w, problems, HTMLPath+"problems.html")
+	EncodeAnswer(format, w, &problemsForTemplate{problems}, HTMLPath+"problems.html")
+}
+
+func newProblem(w http.ResponseWriter, r *http.Request) {
+	user := GetUserFromContext(r)
+	if user == nil {
+		EncodeError(FormatHTML, w, ErrorRendererDefault(errors.New("not authorized")))
+		return
+	}
+
+	problemTypes, err := problemService.GetAllProblemTypes()
+	if err != nil {
+		EncodeError(FormatHTML, w, ErrorRendererDefault(err))
+		return
+	}
+
+	problem := &models.Problem{User: *user}
+	problemWithAllTypes := struct {
+		Problem *models.Problem
+		Types   []models.ProblemType
+	}{problem, problemTypes}
+
+	EncodeAnswer(FormatHTML, w, problemWithAllTypes, HTMLPath+"problem-add.html")
 }
 
 func getProblemInfo(w http.ResponseWriter, r *http.Request) {
@@ -113,17 +188,21 @@ func addProblem(w http.ResponseWriter, r *http.Request) {
 	format := GetFormatFromRequest(r)
 
 	problemData := models.Problem{}
-	DecodeRequest(format, w, r, &problemData, DecodeProblemAddRequest)
+	DecodeRequest(format, w, r, &problemData, decodeProblemAddRequest)
 	err := problemService.AddNewProblem(&problemData)
 	if err != nil {
 		ServerErrorRender(format, w)
 		return
 	}
 
-	EncodeAnswer(format, w, problemData, HTMLPath+"problem-add.html")
+	if format == FormatHTML {
+		getAllProblems(w, r)
+		return
+	}
+	EncodeAnswer(FormatJSON, w, problemData)
 }
 
-func DecodeProblemAddRequest(r *http.Request, data interface{}) error {
+func decodeProblemAddRequest(r *http.Request, data interface{}) error {
 
 	var err error
 
@@ -143,9 +222,75 @@ func DecodeProblemAddRequest(r *http.Request, data interface{}) error {
 	problemData.Description = description.(string)
 	problemData.IsSolved = false
 	err = problemService.AddProblemComplexFields(problemData, typeID.(int), scooterID.(int), userID.(int))
+
+	return err
+}
+
+func getProblemSolution(w http.ResponseWriter, r *http.Request) {
+	format := GetFormatFromRequest(r)
+
+	problemID, err := strconv.Atoi(mux.Vars(r)[problemIDKey])
+	if err != nil {
+		EncodeError(format, w, ErrorRendererDefault(err))
+		return
+	}
+
+	problem, err := problemService.GetProblemByID(problemID)
+	if err != nil {
+		EncodeError(FormatHTML, w, ErrorRendererDefault(err))
+		return
+	}
+
+	solution, err := problemService.GetSolutionByProblem(problem)
+	if err != nil {
+		EncodeError(FormatHTML, w, ErrorRendererDefault(err))
+		return
+	}
+
+	EncodeAnswer(format, w, solution, HTMLPath+"solution.html")
+}
+
+func addProblemSolution(w http.ResponseWriter, r *http.Request) {
+	format := GetFormatFromRequest(r)
+
+	problemID, err := strconv.Atoi(mux.Vars(r)[problemIDKey])
+	if err != nil {
+		EncodeError(format, w, ErrorRendererDefault(err))
+		return
+	}
+
+	solutionData := models.Solution{}
+	solutionData.Problem = models.Problem{ID: problemID}
+	DecodeRequest(format, w, r, &solutionData, decodeSolutionAddRequest)
+	err = problemService.AddProblemSolution(solutionData.Problem.ID, &solutionData)
+	if err != nil {
+		ServerErrorRender(format, w)
+		return
+	}
+
+	getProblemInfo(w, r)
+}
+
+func decodeSolutionAddRequest(r *http.Request, data interface{}) error {
+	var err error
+
+	solutionData := data.(*models.Solution)
+
+	description, _ := GetParameterFromRequest(r, "Description", utils.ConvertStringToString())
 	if err != nil {
 		return err
 	}
+	solutionData.Description = description.(string)
 
-	return problemService.AddNewProblem(problemData)
+	problemID, err := GetParameterFromRequest(r, "ProblemID", utils.ConvertStringToInt())
+	if err != nil {
+		return err
+	}
+	problem, err := problemService.GetProblemByID(problemID.(int))
+	if err != nil {
+		return err
+	}
+	solutionData.Problem = problem
+
+	return problemService.AddProblemSolution(problemID.(int), solutionData)
 }

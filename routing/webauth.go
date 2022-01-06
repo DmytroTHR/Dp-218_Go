@@ -1,75 +1,89 @@
 package routing
 
 import (
-	"Dp218Go/utils"
+	"Dp218Go/internal/validation"
 	"Dp218Go/models"
 	"Dp218Go/services"
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
-type Uid string
+type userKey string
 
 var (
-	uid       Uid = "user"
-	ErrSignUp     = errors.New("signup error")
-	ErrSignIn     = errors.New("signin error")
+	ukey                  userKey = "user"
+	authenticationService *services.AuthService
+	// ErrSignUp error returned to client if registering failed
+	ErrSignUp = errors.New("signup error")
+	// ErrSignIn error returned to client if authentication failed
+	ErrSignIn = errors.New("signin error")
 )
 
+//AddAuthHandler registeres endpoints for authentication
+func AddAuthHandler(router *mux.Router, service *services.AuthService) {
+	authenticationService = service
+	router.Path("/signup").HandlerFunc(SignUp(authenticationService)).Methods(http.MethodPost)
+	router.Path("/signin").HandlerFunc(SignIn(authenticationService)).Methods(http.MethodPost)
+	router.Path("/signout").HandlerFunc(SignOut(authenticationService)).Methods(http.MethodGet)
+}
+
+//SignUp is handler for signup authentication service method
 func SignUp(sv *services.AuthService) http.HandlerFunc {
+
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		// TODO implement validation
-		user := &models.User{
+		valReq := validation.SignUpUserRequest{
 			LoginEmail:  r.FormValue("email"),
-			IsBlocked:   true,
 			UserName:    r.FormValue("name"),
 			UserSurname: r.FormValue("surname"),
-			Role:        models.Role{ID: 2},
 			Password:    r.FormValue("password"),
 		}
-
-		pass, err := utils.HashPassword(user.Password)
-		if err != nil {
-			fmt.Println(err)
-			http.Error(w, ErrSignUp.Error(), http.StatusInternalServerError)
-			return
-		}
-		user.Password = pass
-
-		err = sv.DB.AddUser(user)
-
-		if err != nil {
-			fmt.Println(err)
-			http.Error(w, ErrSignUp.Error(), http.StatusInternalServerError)
+		if err := valReq.Validate(); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
+		user := &models.User{
+			LoginEmail:  valReq.LoginEmail,
+			IsBlocked:   true,
+			UserName:    valReq.UserName,
+			UserSurname: valReq.UserSurname,
+			Role:        models.Role{ID: 2},
+			Password:    valReq.Password,
+		}
+
+		if err := sv.SignUp(user); err != nil {
+
+			http.Error(w, ErrSignUp.Error(), http.StatusInternalServerError)
+			return
+		}
 		http.Redirect(w, r, "/login", http.StatusFound)
 	}
 }
 
+//SignIn is handler for signin authentication service method
 func SignIn(sv *services.AuthService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// // TODO implement validation
 
-		type authRequest struct {
-			Email    string `json:"email"`
-			Password string `json:"password"`
+		valReq := validation.SignInUserRequest{
+			LoginEmail: r.FormValue("email"),
+			Password:   r.FormValue("password"),
+		}
+		if err := valReq.Validate(); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 
-		req := authRequest{
-			Email:    r.FormValue("email"),
-			Password: r.FormValue("password"),
+		req := &services.AuthRequest{
+			Email:    valReq.LoginEmail,
+			Password: valReq.Password,
 		}
-		fmt.Println("got req: ", req)
 
-		user, err := sv.DB.GetUserByEmail(req.Email)
-		if err != nil {
-			//fmt.Println("cant get user", err)
-			//http.Error(w, ErrSignIn.Error(), http.StatusForbidden)
+		if err := sv.SignIn(w, r, req); err != nil {
+
 			EncodeError(FormatHTML, w, &ResponseStatus{
 				Err:        ErrSignIn,
 				StatusCode: http.StatusForbidden,
@@ -79,45 +93,16 @@ func SignIn(sv *services.AuthService) http.HandlerFunc {
 			return
 		}
 
-		if err := utils.CheckPassword(user.Password, req.Password); err != nil {
-			fmt.Println(err)
-			http.Error(w, ErrSignIn.Error(), http.StatusForbidden)
-			return
-		}
-
-		session, err := sv.GetSessionStore().Get(r, services.SessionName)
-		if err != nil {
-			fmt.Println(err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		session.Values[services.SessionVal] = user
-		err = session.Save(r, w)
-		if err != nil {
-			fmt.Println(err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
 		http.Redirect(w, r, "/home", http.StatusFound)
 	}
 }
 
+//SignOut is handler for signout authentication service method
 func SignOut(sv *services.AuthService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		session, err := sv.GetSessionStore().Get(r, services.SessionName)
-		if err != nil {
-			fmt.Println(err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
 
-		session.Values[services.SessionVal] = nil
-		session.Options.MaxAge = -1
-		err = session.Save(r, w)
+		err := sv.SignOut(w, r)
 		if err != nil {
-			fmt.Println(err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -126,28 +111,31 @@ func SignOut(sv *services.AuthService) http.HandlerFunc {
 	}
 }
 
-func WrapUserContext(sv *services.AuthService, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user, err := sv.GetUserFromRequest(r)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusForbidden)
-			return
-		}
-		newReq := r.WithContext(context.WithValue(r.Context(), uid, user))
+// FilterAuth  is middleware checks if user is authenticated
+// writes user to context for retrieving if chaining middleware is present
+// shows error if user is not authenticated
+func FilterAuth(sv *services.AuthService) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			user, err := sv.GetUserFromRequest(r)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusForbidden)
+				return
+			}
+			newReq := r.WithContext(context.WithValue(r.Context(), ukey, user))
 
-		next(w, newReq)
+			next.ServeHTTP(w, newReq)
+		})
 	}
 }
 
+// GetUserFromContext retrieves user from context
 func GetUserFromContext(r *http.Request) *models.User {
-	val := r.Context().Value(uid)
-	user, ok := val.(models.User)
+	val := r.Context().Value(ukey)
+	user, ok := val.(*models.User)
+
 	if ok {
-		return &user
+		return user
 	}
 	return nil
 }
-
-// usage
-// WrapUserContext(authService, endPointUser)
-// -> GetUserFromContext(r) = user
