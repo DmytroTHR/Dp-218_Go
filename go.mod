@@ -2,7 +2,7 @@ module Dp218Go
 
 go 1.17
 
-replace problem.micro => ./ProblemMicro
+replace problem.micro => ./microservice/ProblemMicro
 
 require (
 	github.com/gorilla/sessions v1.2.1
