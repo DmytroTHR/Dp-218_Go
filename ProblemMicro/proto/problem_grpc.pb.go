@@ -33,6 +33,8 @@ type ProblemServiceClient interface {
 	GetProblemsByTimePeriod(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error)
 	GetProblemTypeByID(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error)
 	GetAllProblemTypes(ctx context.Context, in *ProblemRequest, opts ...grpc.CallOption) (*Response, error)
+	AddProblemSolution(ctx context.Context, in *ProblemSolution, opts ...grpc.CallOption) (*Response, error)
+	GetSolutionByProblem(ctx context.Context, in *Problem, opts ...grpc.CallOption) (*Response, error)
 }
 
 type problemServiceClient struct {
@@ -142,6 +144,24 @@ func (c *problemServiceClient) GetAllProblemTypes(ctx context.Context, in *Probl
 	return out, nil
 }
 
+func (c *problemServiceClient) AddProblemSolution(ctx context.Context, in *ProblemSolution, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, "/problem.ProblemService/AddProblemSolution", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *problemServiceClient) GetSolutionByProblem(ctx context.Context, in *Problem, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, "/problem.ProblemService/GetSolutionByProblem", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ProblemServiceServer is the server API for ProblemService service.
 // All implementations must embed UnimplementedProblemServiceServer
 // for forward compatibility
@@ -157,6 +177,8 @@ type ProblemServiceServer interface {
 	GetProblemsByTimePeriod(context.Context, *ProblemRequest) (*Response, error)
 	GetProblemTypeByID(context.Context, *ProblemRequest) (*Response, error)
 	GetAllProblemTypes(context.Context, *ProblemRequest) (*Response, error)
+	AddProblemSolution(context.Context, *ProblemSolution) (*Response, error)
+	GetSolutionByProblem(context.Context, *Problem) (*Response, error)
 	mustEmbedUnimplementedProblemServiceServer()
 }
 
@@ -196,6 +218,12 @@ func (UnimplementedProblemServiceServer) GetProblemTypeByID(context.Context, *Pr
 }
 func (UnimplementedProblemServiceServer) GetAllProblemTypes(context.Context, *ProblemRequest) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAllProblemTypes not implemented")
+}
+func (UnimplementedProblemServiceServer) AddProblemSolution(context.Context, *ProblemSolution) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddProblemSolution not implemented")
+}
+func (UnimplementedProblemServiceServer) GetSolutionByProblem(context.Context, *Problem) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSolutionByProblem not implemented")
 }
 func (UnimplementedProblemServiceServer) mustEmbedUnimplementedProblemServiceServer() {}
 
@@ -408,6 +436,42 @@ func _ProblemService_GetAllProblemTypes_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ProblemService_AddProblemSolution_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProblemSolution)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProblemServiceServer).AddProblemSolution(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/problem.ProblemService/AddProblemSolution",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProblemServiceServer).AddProblemSolution(ctx, req.(*ProblemSolution))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ProblemService_GetSolutionByProblem_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Problem)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProblemServiceServer).GetSolutionByProblem(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/problem.ProblemService/GetSolutionByProblem",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProblemServiceServer).GetSolutionByProblem(ctx, req.(*Problem))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ProblemService_ServiceDesc is the grpc.ServiceDesc for ProblemService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -458,6 +522,14 @@ var ProblemService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAllProblemTypes",
 			Handler:    _ProblemService_GetAllProblemTypes_Handler,
+		},
+		{
+			MethodName: "AddProblemSolution",
+			Handler:    _ProblemService_AddProblemSolution_Handler,
+		},
+		{
+			MethodName: "GetSolutionByProblem",
+			Handler:    _ProblemService_GetSolutionByProblem_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

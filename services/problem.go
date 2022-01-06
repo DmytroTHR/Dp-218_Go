@@ -2,7 +2,6 @@ package services
 
 import (
 	"Dp218Go/models"
-	"Dp218Go/repositories"
 	"context"
 	"google.golang.org/grpc"
 	"problem.micro/proto"
@@ -11,30 +10,39 @@ import (
 
 // ProblemService - structure for implementing user problem service
 type ProblemService struct {
-	repoProblem  repositories.ProblemRepo
-	repoSolution repositories.SolutionRepo
 	microservice proto.ProblemServiceClient
+	userService  *UserService
 }
 
-func (problserv *ProblemService) unmarshallProblem(problemGRPC *proto.Problem) models.Problem  {
+func (problserv *ProblemService) unmarshallProblem(problemGRPC *proto.Problem) models.Problem {
 	problem := models.Problem{
 		ID:           int(problemGRPC.Id),
 		DateReported: time.Unix(problemGRPC.ReportedAt.Seconds, 0),
 		Description:  problemGRPC.Description,
 		IsSolved:     problemGRPC.IsSolved,
 	}
-	problserv.AddProblemComplexFields(&problem, int(problemGRPC.Type.Id), 0, int(problemGRPC.UserId))
+	problserv.AddProblemComplexFields(&problem, int(problemGRPC.Type.Id), int(problemGRPC.UserId))
 	return problem
 }
 
-func (problserv *ProblemService) unmarshallProblemType(problemTypeGRPC *proto.ProblemType) models.ProblemType  {
+func (problserv *ProblemService) unmarshallProblemType(problemTypeGRPC *proto.ProblemType) models.ProblemType {
 	return models.ProblemType{
 		ID:   int(problemTypeGRPC.Id),
 		Name: problemTypeGRPC.Name,
 	}
 }
 
-func (problserv *ProblemService) marshallProblem(problem *models.Problem) *proto.Problem  {
+func (problserv *ProblemService) unmarshallSolution(solutionGRPC *proto.Solution) models.Solution {
+	solution := models.Solution{
+		Problem:     problserv.unmarshallProblem(solutionGRPC.Problem),
+		DateSolved:  time.Unix(solutionGRPC.SolvedAt.Seconds, 0),
+		Description: solutionGRPC.Description,
+	}
+
+	return solution
+}
+
+func (problserv *ProblemService) marshallProblem(problem *models.Problem) *proto.Problem {
 	return &proto.Problem{
 		Id:          int64(problem.ID),
 		UserId:      int64(problem.User.ID),
@@ -45,12 +53,19 @@ func (problserv *ProblemService) marshallProblem(problem *models.Problem) *proto
 	}
 }
 
+func (problserv *ProblemService) marshallSolution(solution *models.Solution) *proto.Solution {
+	return &proto.Solution{
+		Problem:     problserv.marshallProblem(&solution.Problem),
+		Description: solution.Description,
+		SolvedAt:    &proto.DateTime{Seconds: solution.DateSolved.Unix()},
+	}
+}
+
 // NewProblemService - initialization of ProblemService
-func NewProblemService(repoProblem repositories.ProblemRepo, repoSolution repositories.SolutionRepo, grpcConn grpc.ClientConnInterface) *ProblemService {
+func NewProblemService(grpcConn grpc.ClientConnInterface, userServ *UserService) *ProblemService {
 	return &ProblemService{
-		repoProblem: repoProblem,
-		repoSolution: repoSolution,
 		microservice: proto.NewProblemServiceClient(grpcConn),
+		userService:  userServ,
 	}
 }
 
@@ -151,7 +166,7 @@ func (problserv *ProblemService) GetProblemsByBeingSolved(solved bool) (*models.
 func (problserv *ProblemService) GetProblemsByTimePeriod(start, end time.Time) (*models.ProblemList, error) {
 	request := &proto.ProblemRequest{
 		StartTime: &proto.DateTime{Seconds: start.Unix()},
-		EndTime: &proto.DateTime{Seconds: end.Unix()},
+		EndTime:   &proto.DateTime{Seconds: end.Unix()},
 	}
 	response, err := problserv.microservice.GetProblemsByTimePeriod(context.Background(), request)
 	resultingList := &models.ProblemList{}
@@ -165,30 +180,34 @@ func (problserv *ProblemService) GetProblemsByTimePeriod(start, end time.Time) (
 }
 
 // AddProblemComplexFields - fulfill problem model with problem type, scooter, user (by their IDs)
-func (problserv *ProblemService) AddProblemComplexFields(problem *models.Problem, typeID, scooterID, userID int) error {
-	return problserv.repoProblem.AddProblemComplexFields(problem, typeID, scooterID, userID)
+func (problserv *ProblemService) AddProblemComplexFields(problem *models.Problem, typeID, userID int) {
+	if typeID != 0 {
+		problemType, eType := problserv.GetProblemTypeByID(typeID)
+		if eType == nil {
+			problem.Type = problemType
+		}
+	}
+	if userID != 0 {
+		user, eUser := problserv.userService.GetUserByID(userID)
+		if eUser == nil {
+			problem.User = user
+		}
+	}
 }
 
 // AddProblemSolution - make solution record for given problem (by ID)
 func (problserv *ProblemService) AddProblemSolution(problemID int, solution *models.Solution) error {
-	err := problserv.repoSolution.AddProblemSolution(problemID, solution)
-	if err != nil {
-		return err
+	request := &proto.ProblemSolution{
+		Problem:  &proto.Problem{Id: int64(problemID)},
+		Solution: problserv.marshallSolution(solution),
 	}
-	problem, err := problserv.repoProblem.GetProblemByID(problemID)
-	if err != nil {
-		return err
-	}
-	_, err = problserv.repoProblem.MarkProblemAsSolved(&problem)
+	_, err := problserv.microservice.AddProblemSolution(context.Background(), request)
 	return err
 }
 
 // GetSolutionByProblem - get solution for given problem
 func (problserv *ProblemService) GetSolutionByProblem(problem models.Problem) (models.Solution, error) {
-	return problserv.repoSolution.GetSolutionByProblem(problem)
-}
+	response, err := problserv.microservice.GetSolutionByProblem(context.Background(), problserv.marshallProblem(&problem))
 
-// GetSolutionsByProblems - get solutions for given problems list
-func (problserv *ProblemService) GetSolutionsByProblems(problems models.ProblemList) (map[models.Problem]models.Solution, error) {
-	return problserv.repoSolution.GetSolutionsByProblems(problems)
+	return problserv.unmarshallSolution(response.Solution), err
 }

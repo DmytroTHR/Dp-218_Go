@@ -14,11 +14,13 @@ type ProblemRepositoryServer interface {
 	ReadByTypeID(ctx context.Context, typeID int32) ([]*proto.Problem, error)
 	ReadByUserID(ctx context.Context, userID int64) ([]*proto.Problem, error)
 	ReadBySolved(ctx context.Context, isSolved bool) ([]*proto.Problem, error)
-	ReadByTimePeriod(ctx context.Context, start, end proto.DateTime) ([]*proto.Problem, error)
+	ReadByTimePeriod(ctx context.Context, start, end *proto.DateTime) ([]*proto.Problem, error)
 	Update(ctx context.Context, problem *proto.Problem) (*proto.Problem, error)
 	DeleteByID(ctx context.Context, id int64) error
 	ReadTypeByID(ctx context.Context, id int32) (*proto.ProblemType, error)
 	ReadTypeAll(ctx context.Context) ([]*proto.ProblemType, error)
+	CreateSolution(ctx context.Context, problem *proto.Problem, solution *proto.Solution) (*proto.Solution, error)
+	ReadSolution(ctx context.Context, problem *proto.Problem) (*proto.Solution, error)
 }
 
 type ProblemRepo struct {
@@ -30,12 +32,15 @@ func NewProblemRepo(db *sql.DB) *ProblemRepo {
 }
 
 func (repo *ProblemRepo) Create(ctx context.Context, problem *proto.Problem) (*proto.Problem, error) {
-	query := `INSERT INTO problems(user_id, type_Id, scooter_id, description, is_solved)
-	VALUES($1, $2, $3, $4, $5)
+	query := `INSERT INTO problems(user_id, type_Id, description, is_solved)
+	VALUES($1, $2, $3, $4)
 	RETURNING id, date_reported;`
-	row := repo.db.QueryRowContext(ctx, query, problem.UserId, problem.Type.Id, 0, problem.Description, problem.IsSolved)
+	row := repo.db.QueryRowContext(ctx, query, problem.UserId, problem.Type.Id, problem.Description, problem.IsSolved)
 	var currDate time.Time
 	err := row.Scan(&problem.Id, &currDate)
+	if err != nil {
+		return problem, err
+	}
 	problem.ReportedAt = &proto.DateTime{
 		Seconds: currDate.Unix(),
 	}
@@ -184,4 +189,42 @@ func (repo *ProblemRepo) ReadTypeAll(ctx context.Context) ([]*proto.ProblemType,
 		result = append(result, &problemType)
 	}
 	return result, nil
+}
+
+func (repo *ProblemRepo) CreateSolution(ctx context.Context, problem *proto.Problem, solution *proto.Solution) (*proto.Solution, error) {
+	query := `INSERT INTO 
+		solutions(problem_id, description)
+		VALUES($1, $2)
+		RETURNING date_solved;`
+	row := repo.db.QueryRowContext(ctx, query, problem.Id, solution.Description)
+	var currDate time.Time
+	err := row.Scan(&currDate)
+	if err != nil {
+		return solution, err
+	}
+	solution.SolvedAt = &proto.DateTime{
+		Seconds: currDate.Unix(),
+	}
+	solution.Problem = problem
+	return solution, err
+}
+
+func (repo *ProblemRepo) ReadSolution(ctx context.Context, problem *proto.Problem) (*proto.Solution, error) {
+	query := `SELECT 
+		description, 
+      	date_solved
+		FROM solutions 
+		WHERE problem_id = $1;`
+	row := repo.db.QueryRowContext(ctx, query, problem.Id)
+	var solution proto.Solution
+	var currDate time.Time
+	err := row.Scan(&solution.Description, &currDate)
+	if err != nil {
+		return &solution, err
+	}
+	solution.Problem = problem
+	solution.SolvedAt = &proto.DateTime{
+		Seconds: currDate.Unix(),
+	}
+	return &solution, err
 }

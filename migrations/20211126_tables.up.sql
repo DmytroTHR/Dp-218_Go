@@ -149,14 +149,12 @@ CREATE TABLE IF NOT EXISTS problems
     id            bigserial PRIMARY KEY,
     user_id       int       NOT NULL,
     type_Id       smallint  NOT NULL,
-    scooter_id    int,
     date_reported TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     description   text      NOT NULL,
     is_solved     boolean,
 
     FOREIGN KEY (user_id) REFERENCES users (id),
     FOREIGN KEY (type_id) REFERENCES problem_types (id)
-    --FOREIGN KEY (scooter_id) REFERENCES scooters (id)
 );
 
 CREATE TABLE IF NOT EXISTS solutions
@@ -268,8 +266,8 @@ INSERT INTO scooter_statuses(scooter_id, battery_remain, latitude, longitude, ca
 INSERT INTO scooter_statuses(scooter_id, battery_remain, latitude, longitude, can_be_rent) VALUES(5, 40, 48.43452620789186, 35.01444471956219, true);
 INSERT INTO scooter_statuses(scooter_id, battery_remain, latitude, longitude, can_be_rent) VALUES(6, 100, 48.43452620789186, 35.01444471956219, true);
 
-INSERT INTO accounts(name, number, owner_id) VALUES('Main account', '111222333444', 9);
-INSERT INTO accounts(name, number, owner_id) VALUES('One more account', '55555666666', 9);
+INSERT INTO accounts(name, number, owner_id) VALUES('Main account', '111222333444', 8);
+INSERT INTO accounts(name, number, owner_id) VALUES('One more account', '55555666666', 8);
 
 INSERT INTO account_transactions(date_time, payment_type_id, account_from_id, account_to_id, order_id, amount_cents) VALUES(current_timestamp, 2, 0, 1, 0, 99999);
 INSERT INTO account_transactions(date_time, payment_type_id, account_from_id, account_to_id, order_id, amount_cents) VALUES(current_timestamp, 3, 1, 0, 0, 11111);
@@ -278,9 +276,9 @@ INSERT INTO account_transactions(date_time, payment_type_id, account_from_id, ac
 INSERT INTO problem_types(id, name) VALUES (1, 'General');
 INSERT INTO problem_types(id, name) VALUES (2, 'Payment issues');
 INSERT INTO problem_types(id, name) VALUES (3, 'Scooter issues');
-INSERT INTO problems(user_id, type_Id, scooter_id, description, is_solved) VALUES(1, 1, 0, 'Bad service', false);
-INSERT INTO problems(user_id, type_Id, scooter_id, description, is_solved) VALUES(1, 2, 0, 'Wrong sum calculated', false);
-INSERT INTO problems(user_id, type_Id, scooter_id, description, is_solved) VALUES(2, 2, 0, 'Cant pay for service', false);
-INSERT INTO problems(user_id, type_Id, scooter_id, description, is_solved) VALUES(3, 3, 1, 'Battery failed and scooter suddenly stopped', false);
+INSERT INTO problems(user_id, type_Id, description, is_solved) VALUES(1, 1, 'Bad service', false);
+INSERT INTO problems(user_id, type_Id, description, is_solved) VALUES(1, 2, 'Wrong sum calculated', false);
+INSERT INTO problems(user_id, type_Id, description, is_solved) VALUES(2, 2, 'Cant pay for service', false);
+INSERT INTO problems(user_id, type_Id, description, is_solved) VALUES(3, 3, 'Battery failed and scooter suddenly stopped', false);
 
 COMMIT;
