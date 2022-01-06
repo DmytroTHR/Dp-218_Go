@@ -1,7 +1,6 @@
 FROM golang:1.17-alpine3.13 as builder
 WORKDIR /go/src/Dp218Go
 COPY . .
-RUN rm -rf ./microcervice
 ENV GOPROXY https://proxy.golang.org,direct
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o build/scooterapp ./cmd/app
 
