@@ -209,7 +209,6 @@ func decodeProblemAddRequest(r *http.Request, data interface{}) error {
 	problemData := data.(*models.Problem)
 
 	description, _ := GetParameterFromRequest(r, "Description", utils.ConvertStringToString())
-	scooterID, _ := GetParameterFromRequest(r, "ScooterID", utils.ConvertStringToInt())
 	userID, err := GetParameterFromRequest(r, "UserID", utils.ConvertStringToInt())
 	if err != nil {
 		return err
@@ -221,7 +220,7 @@ func decodeProblemAddRequest(r *http.Request, data interface{}) error {
 
 	problemData.Description = description.(string)
 	problemData.IsSolved = false
-	err = problemService.AddProblemComplexFields(problemData, typeID.(int), scooterID.(int), userID.(int))
+	problemService.AddProblemComplexFields(problemData, typeID.(int), userID.(int))
 
 	return err
 }

@@ -59,15 +59,13 @@ func main() {
 	var supplierRepoDB = postgres.NewSupplierRepoDB(db)
 	var supplierService = services.NewSupplierService(supplierRepoDB)
 
-	var problemRepoDB = postgres.NewProblemRepoDB(userRoleRepoDB, scooterRepo, db)
-	var solutionRepoDB = postgres.NewSolutionRepoDB(db)
 	problemGRPCServer := net.JoinHostPort(configs.PROBLEMS_SERVICE, configs.PROBLEMS_GRPC_PORT)
 	problemConnection, err := grpc.Dial(problemGRPCServer, grpc.WithInsecure())
 	if err != nil {
 		log.Panicf("%s: unable to set grpc connection - %v", problemGRPCServer, err)
 	}
 	defer problemConnection.Close()
-	var problemService = services.NewProblemService(problemRepoDB, solutionRepoDB, problemConnection)
+	var problemService = services.NewProblemService(problemConnection, userService)
 
 	var orderRepoDB = postgres.NewOrderRepoDB(db)
 	var orderService = services.NewOrderService(orderRepoDB)

@@ -91,7 +91,7 @@ func (serv *ProblemService) GetProblemsByTimePeriod(ctx context.Context, request
 func (serv *ProblemService) GetProblemTypeByID(ctx context.Context, request *proto.ProblemRequest) (*proto.Response, error) {
 	problemType, err := serv.Repo.ReadTypeByID(ctx, request.TypeId)
 	return &proto.Response{
-		Success:  err == nil,
+		Success:     err == nil,
 		ProblemType: problemType,
 	}, err
 }
@@ -100,7 +100,39 @@ func (serv *ProblemService) GetAllProblemTypes(ctx context.Context, request *pro
 	_ = request
 	problemTypes, err := serv.Repo.ReadTypeAll(ctx)
 	return &proto.Response{
-		Success:  err == nil,
+		Success:      err == nil,
 		ProblemTypes: problemTypes,
+	}, err
+}
+
+func (serv *ProblemService) AddProblemSolution(ctx context.Context, request *proto.ProblemSolution) (*proto.Response, error) {
+	var err error
+	var solutionCreated *proto.Solution
+
+	request.Problem, err = serv.Repo.ReadByID(ctx, request.Problem.Id)
+	if err != nil {
+		return &proto.Response{
+			Success: false,
+		}, err
+	}
+
+	solutionCreated, err = serv.Repo.CreateSolution(ctx, request.Problem, request.Solution)
+
+	if err == nil {
+		request.Problem.IsSolved = true
+		_, err = serv.UpdateProblem(ctx, request.Problem)
+	}
+
+	return &proto.Response{
+		Success:  err == nil,
+		Solution: solutionCreated,
+	}, err
+}
+
+func (serv *ProblemService) GetSolutionByProblem(ctx context.Context, request *proto.Problem) (*proto.Response, error) {
+	solutionFound, err := serv.Repo.ReadSolution(ctx, request)
+	return &proto.Response{
+		Success:  err == nil,
+		Solution: solutionFound,
 	}, err
 }

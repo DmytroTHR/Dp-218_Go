@@ -36,7 +36,6 @@
         <hr class="my-4">
         <p class="lead">User reported:&nbsp;&nbsp;<a href="mailto:{{.User.LoginEmail}}" target="_blank" class="btn btn-link">{{.User.UserName}}&nbsp;{{.User.UserSurname}}</a></p>
         <p class="lead">Problem type:&nbsp;&nbsp;{{.Type.Name}}</p>
-        {{if ne .Scooter.ID 0}} <p class="lead">Scooter:&nbsp;&nbsp;{{.Scooter.ScooterModel}}&nbsp;({{.Scooter.ID}})</p> {{end}}
         <hr class="my-4">
         <h3>Description</h3>
         <div class="alert alert-dismissible alert-info">

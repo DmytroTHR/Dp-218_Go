@@ -60,7 +60,6 @@
                     {{end}}
                 </div>
             </th>
-            <th>Scooter</th>
             <th>Description</th>
             <th>Date reported</th>
             <th></th>
@@ -76,7 +75,6 @@
             </td>
             <td><a href="mailto:{{.User.LoginEmail}}" target="_blank" class="btn btn-link">{{.User.UserName}}&nbsp;{{.User.UserSurname}}</a></td>
             <td>{{.Type.Name}}</td>
-            <td>{{if ne .Scooter.ID 0}} {{.Scooter.ScooterModel}}&nbsp;({{.Scooter.ID}}) {{end}}</td>
             <td>{{.Description}}</td>
             <td type="date">{{.DateReported}}</td>
             <td>

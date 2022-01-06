@@ -132,7 +132,6 @@ func EncodeAnswer(format int, w http.ResponseWriter, answer interface{}, htmlTem
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
 }
 
 // DecodeRequest - receives information from given request and decodes it into given format

@@ -13,7 +13,9 @@ service ProblemService{
   rpc GetProblemsBySolved(ProblemRequest) returns(Response) {}
   rpc GetProblemsByTimePeriod(ProblemRequest) returns(Response) {}
   rpc GetProblemTypeByID(ProblemRequest) returns(Response) {}
-  rpc GetAllProblemTypes(ProblemRequest) returns(Response){}
+  rpc GetAllProblemTypes(ProblemRequest) returns(Response) {}
+  rpc AddProblemSolution(ProblemSolution) returns(Response) {}
+  rpc GetSolutionByProblem(Problem) returns(Response) {}
 }
 
 message DateTime{
@@ -34,6 +36,17 @@ message Problem {
   DateTime reported_at = 6;
 }
 
+message Solution {
+  Problem problem = 1;
+  string description = 2;
+  DateTime solved_at = 3;
+}
+
+message ProblemSolution {
+  Problem problem = 1;
+  Solution solution = 2;
+}
+
 message ProblemRequest{
   int64 id = 1;
   int64 user_id = 2;
@@ -49,4 +62,5 @@ message Response {
   repeated Problem problems = 3;
   ProblemType problem_type = 4;
   repeated ProblemType problem_types = 5;
+  Solution solution = 6;
 }
