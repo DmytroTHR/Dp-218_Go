@@ -1,15 +1,12 @@
-FROM golang:1.17-alpine as builder
-COPY go.mod go.sum /go/src/Dp218Go/
+FROM golang:1.17-alpine3.13 as builder
 WORKDIR /go/src/Dp218Go
-RUN go mod tidy
-COPY . /go/src/Dp218Go
-ENV GO111MODULE=on
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o build/scooterapp ./cmd/app
+COPY . .
+RUN rm -rf ./microcervice
+ENV GOPROXY https://proxy.golang.org,direct
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o build/scooterapp ./cmd/app
 
-FROM alpine
-RUN apk add --no-cache ca-certificates && update-ca-certificates
+FROM scratch
 COPY --from=builder /go/src/Dp218Go/migrations/. /home/Dp218Go/migrations
 COPY --from=builder /go/src/Dp218Go/templates/. /home/Dp218Go/templates
 COPY --from=builder /go/src/Dp218Go/build/scooterapp /usr/bin/scooterapp
-EXPOSE 8080 8080
 ENTRYPOINT [ "/usr/bin/scooterapp" ]

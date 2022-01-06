@@ -74,7 +74,7 @@ services:
     container_name: problemservice
     build:
       context: .
-      dockerfile: ./microservice/docker/ProblemMicro/Dockerfile
+      dockerfile: microservice/docker/Dockerfile.problem
     env_file:
       - ./configs/.env
     depends_on:
