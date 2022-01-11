@@ -10,6 +10,7 @@ import (
 	"Dp218Go/services"
 	"fmt"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"log"
 	"net"
 	"net/http"
@@ -60,7 +61,11 @@ func main() {
 	var supplierService = services.NewSupplierService(supplierRepoDB)
 
 	problemGRPCServer := net.JoinHostPort(configs.PROBLEMS_SERVICE, configs.PROBLEMS_GRPC_PORT)
-	problemConnection, err := grpc.Dial(problemGRPCServer, grpc.WithInsecure())
+	problemCred, err := credentials.NewClientTLSFromFile(configs.PROBLEMS_CERTIFICATE, "")
+	if err != nil {
+		log.Panicf("%s: unable to get TLS certificate - %v", problemGRPCServer, err)
+	}
+	problemConnection, err := grpc.Dial(problemGRPCServer, grpc.WithTransportCredentials(problemCred))
 	if err != nil {
 		log.Panicf("%s: unable to set grpc connection - %v", problemGRPCServer, err)
 	}
